@@ -34,6 +34,18 @@ From this directory:
 .\scripts\run_agent.bat "Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images"
 ```
 
+Run the local web app:
+
+```powershell
+.\scripts\run_web.bat
+```
+
+Then open:
+
+```text
+http://127.0.0.1:8765
+```
+
 Or:
 
 ```powershell
@@ -60,4 +72,5 @@ jobs/         Job JSON records.
 manifests/    Models, characters, styles, and backend capabilities.
 outputs/      Generated outputs and metadata.
 src/          Codex Creator Agent source.
+web/          Browser UI and client-side assets.
 ```

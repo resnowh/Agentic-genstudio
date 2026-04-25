@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agentic GenStudio</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Local AI creation agent</p>
+            <h1>Agentic GenStudio</h1>
+          </div>
+          <div class="status" id="status">dry-run ready</div>
+        </header>
+
+        <form class="composer" id="composer">
+          <textarea id="prompt" name="prompt" rows="7" spellcheck="false">Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images</textarea>
+          <div class="actions">
+            <button type="button" id="planBtn">Plan</button>
+            <button type="submit" id="runBtn">Run</button>
+          </div>
+        </form>
+
+        <section class="result-grid">
+          <article class="panel">
+            <div class="panel-title">Planned Job</div>
+            <pre id="planOutput">{}</pre>
+          </article>
+          <article class="panel">
+            <div class="panel-title">Execution Result</div>
+            <pre id="runOutput">{}</pre>
+          </article>
+        </section>
+      </section>
+
+      <aside class="history">
+        <div class="panel-title">Recent Jobs</div>
+        <div id="jobs" class="jobs"></div>
+      </aside>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>
+
