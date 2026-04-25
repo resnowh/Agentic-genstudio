@@ -1,0 +1,7 @@
+accelerate
+diffusers
+Pillow
+safetensors
+torch
+torchvision
+transformers

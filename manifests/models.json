@@ -1,0 +1,20 @@
+{
+  "models": [
+    {
+      "name": "example-sdxl",
+      "type": "diffusers",
+      "domain": "general",
+      "path": "stabilityai/stable-diffusion-xl-base-1.0",
+      "enabled": false,
+      "supports": [
+        "text_to_image",
+        "image_to_image"
+      ],
+      "recommended": {
+        "resolution": "1024x1024",
+        "steps": 28,
+        "guidance_scale": 5.0
+      }
+    }
+  ]
+}

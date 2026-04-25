@@ -1,0 +1,48 @@
+{
+  "backends": {
+    "dry_run": {
+      "supports": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint",
+        "character_reference",
+        "pose_transfer",
+        "style_training",
+        "character_training",
+        "image_to_3d",
+        "upscale",
+        "batch_variation"
+      ]
+    },
+    "diffusers": {
+      "supports": [
+        "text_to_image",
+        "image_to_image",
+        "inpaint",
+        "upscale",
+        "batch_variation"
+      ]
+    },
+    "comfyui": {
+      "supports": [
+        "character_reference",
+        "pose_transfer",
+        "inpaint",
+        "upscale",
+        "image_to_3d"
+      ]
+    },
+    "training": {
+      "supports": [
+        "style_training",
+        "character_training"
+      ]
+    },
+    "three_d": {
+      "supports": [
+        "image_to_3d"
+      ]
+    }
+  }
+}
+

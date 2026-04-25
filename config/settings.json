@@ -1,0 +1,33 @@
+{
+  "workspace": "D:/ProgramData/WorkSpace/ImageGenerator",
+  "default_backend": "dry_run",
+  "preferred_style": "anime",
+  "default_resolution": "1024x1024",
+  "default_outputs": 4,
+  "default_models": {
+    "text_to_image": null,
+    "image_to_image": null,
+    "inpaint": null
+  },
+  "backends": {
+    "dry_run": {
+      "enabled": true
+    },
+    "diffusers": {
+      "enabled": false,
+      "service_url": "http://127.0.0.1:7861"
+    },
+    "comfyui": {
+      "enabled": false,
+      "service_url": "http://127.0.0.1:8188"
+    },
+    "training": {
+      "enabled": false,
+      "engine": "kohya_ss"
+    },
+    "three_d": {
+      "enabled": false,
+      "engine": "hunyuan3d"
+    }
+  }
+}
