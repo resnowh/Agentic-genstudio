@@ -14,18 +14,44 @@ Creator Agent.
 Use a local environment, not the system Python. PyTorch support is usually best
 on Python 3.11 or 3.12.
 
-Example setup once a compatible Python is available:
+Recommended setup for this workspace:
 
 ```powershell
-python -m venv .venv-diffusers
-.\.venv-diffusers\Scripts\python.exe -m pip install -r requirements\diffusers.txt
+.\scripts\setup_diffusers_env.bat
+```
+
+This creates `.venv-diffusers` without touching the system Python.
+
+For large downloads with visible progress, use the two-step flow:
+
+```powershell
+.\scripts\download_torch_wheels.bat
+.\scripts\install_torch_from_downloads.bat
+```
+
+If package-manager downloads are unreliable, see:
+
+[MANUAL_TORCH_INSTALL.md](MANUAL_TORCH_INSTALL.md)
+
+The verified GPU stack for the RTX 5080 Laptop GPU is:
+
+```text
+Python 3.12.13
+torch 2.11.0+cu130
+torchvision 0.26.0+cu130
+CUDA runtime 13.0
 ```
 
 Run the agent with that interpreter:
 
 ```powershell
-$env:PYTHONPATH="D:\ProgramData\WorkSpace\ImageGenerator\src"
-.\.venv-diffusers\Scripts\python.exe -m codex_creator.cli "生成一个二次元银发蓝眼女孩，雨夜街道，输出4张"
+.\scripts\run_agent_diffusers.bat "生成一个二次元银发蓝眼女孩，雨夜街道，输出4张"
+```
+
+Run the web app with that interpreter:
+
+```powershell
+.\scripts\run_web_diffusers.bat
 ```
 
 ## Enabling

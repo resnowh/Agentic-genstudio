@@ -10,9 +10,11 @@ outputs/*
 logs/*
 !logs/.gitkeep
 
+downloads/*
+!downloads/.gitkeep
+
 models/*
 !models/.gitkeep
 
 training/*
 !training/.gitkeep
-

@@ -22,7 +22,7 @@ This repository is the first local scaffold:
 - Asset manifest layout.
 - Backend adapter interfaces.
 - Dry-run execution that validates routing without installing heavy AI stacks.
-- Diffusers adapter scaffold for real text-to-image, image-to-image, and inpaint execution once a local Python environment and model are configured.
+- Diffusers adapter for real text-to-image, image-to-image, and inpaint execution once a local model is configured.
 
 No global Python packages are required for this version.
 
@@ -61,6 +61,24 @@ The command writes job records under `jobs/` and generated placeholders under
 The first real backend target is `diffusers`. See:
 
 [docs/DIFFUSERS_BACKEND.md](docs/DIFFUSERS_BACKEND.md)
+
+Create the isolated generation environment:
+
+```powershell
+.\scripts\setup_diffusers_env.bat
+```
+
+For the verified RTX 5080 Laptop GPU route, install PyTorch CUDA 13.0 into the
+isolated `.venv-diffusers` environment:
+
+```powershell
+.\scripts\install_torch_from_downloads.bat
+.\.venv-diffusers\python.exe -m pip install -r requirements\diffusers.txt
+.\scripts\verify_diffusers_env.bat
+```
+
+Manual download links and recovery steps are documented in
+[docs/MANUAL_TORCH_INSTALL.md](docs/MANUAL_TORCH_INSTALL.md).
 
 ## Project Layout
 
