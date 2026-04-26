@@ -26,5 +26,7 @@ def choose_backend(job: Job, assets: AssetManager) -> str:
             continue
         supported = capabilities.get(backend, {}).get("supports", [])
         if job.task_type in supported:
+            if backend not in {"dry_run", "comfyui", "training", "three_d"} and not assets.find_model_for(job.task_type, backend):
+                continue
             return backend
     return "dry_run"

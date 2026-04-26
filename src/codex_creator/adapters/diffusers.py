@@ -59,25 +59,37 @@ class DiffusersAdapter(BackendAdapter):
         from PIL import Image
 
         model_path = model["path"]
-        width, height = _parse_resolution(job.resolution)
+        width, height = _parse_resolution(_effective_resolution(job, model))
+        output_count = _effective_outputs(job, model)
         out_dir = self.root / "outputs" / job.job_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        common_kwargs = {
+        common_kwargs: dict[str, Any] = {
             "torch_dtype": torch.float16 if torch.cuda.is_available() else torch.float32,
         }
+        cache_dir = model.get("cache_dir") or self._settings().get("model_cache_dir") or "models/hf-cache"
+        if cache_dir:
+            common_kwargs["cache_dir"] = str(_resolve_model_cache(cache_dir, self.root))
+        if model.get("disable_safety_checker", False):
+            # Some local or tiny validation models ship an incompatible safety checker.
+            common_kwargs["safety_checker"] = None
+            common_kwargs["requires_safety_checker"] = False
+        if "variant" in model:
+            common_kwargs["variant"] = model["variant"]
+        if "use_safetensors" in model:
+            common_kwargs["use_safetensors"] = bool(model["use_safetensors"])
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
-        if job.task_type == "text_to_image":
+        if job.task_type in {"text_to_image", "batch_variation"}:
             pipe = AutoPipelineForText2Image.from_pretrained(model_path, **common_kwargs).to(device)
             result = pipe(
                 prompt=job.prompt,
                 negative_prompt=job.parameters.get("negative_prompt"),
                 width=width,
                 height=height,
-                num_inference_steps=int(job.parameters.get("steps", 28)),
-                guidance_scale=float(job.parameters.get("cfg", 5.0)),
-                num_images_per_prompt=job.outputs,
+                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
+                num_images_per_prompt=output_count,
             )
         elif job.task_type == "image_to_image":
             source = _load_first_image(job, self.root, Image)
@@ -87,9 +99,9 @@ class DiffusersAdapter(BackendAdapter):
                 image=source,
                 negative_prompt=job.parameters.get("negative_prompt"),
                 strength=float(job.parameters.get("denoise", 0.45)),
-                num_inference_steps=int(job.parameters.get("steps", 28)),
-                guidance_scale=float(job.parameters.get("cfg", 5.0)),
-                num_images_per_prompt=job.outputs,
+                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
+                num_images_per_prompt=output_count,
             )
         elif job.task_type == "inpaint":
             source = _load_first_image(job, self.root, Image)
@@ -101,9 +113,9 @@ class DiffusersAdapter(BackendAdapter):
                 mask_image=mask,
                 negative_prompt=job.parameters.get("negative_prompt"),
                 strength=float(job.parameters.get("denoise", 0.6)),
-                num_inference_steps=int(job.parameters.get("steps", 28)),
-                guidance_scale=float(job.parameters.get("cfg", 5.0)),
-                num_images_per_prompt=job.outputs,
+                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
+                num_images_per_prompt=output_count,
             )
         else:
             raise ValueError(f"Task '{job.task_type}' is not supported by diffusers adapter.")
@@ -123,6 +135,9 @@ class DiffusersAdapter(BackendAdapter):
             encoding="utf-8",
         )
         return path
+
+    def _settings(self) -> dict[str, Any]:
+        return AssetManager(self.root).settings()
 
     def _blocked(self, job: Job, message: str) -> ExecutionResult:
         out_dir = self.root / "outputs" / job.job_id
@@ -152,6 +167,41 @@ def _resolve_input(path_text: str, root: Path) -> Path:
     if candidate.exists():
         return candidate
     return root / "inputs" / path
+
+
+def _resolve_model_cache(path_text: str, root: Path) -> Path:
+    path = Path(path_text)
+    if path.is_absolute():
+        return path
+    return root / path
+
+
+def _recommended_value(job: Job, model: dict[str, Any], name: str, default: Any) -> Any:
+    recommended = model.get("recommended", {})
+    if model.get("prefer_model_recommended", False):
+        if name == "cfg" and "guidance_scale" in recommended:
+            return recommended["guidance_scale"]
+        if name in recommended:
+            return recommended[name]
+    if name in job.parameters:
+        return job.parameters[name]
+    if name == "cfg" and "guidance_scale" in recommended:
+        return recommended["guidance_scale"]
+    return recommended.get(name, default)
+
+
+def _effective_resolution(job: Job, model: dict[str, Any]) -> str:
+    recommended = model.get("recommended", {})
+    if model.get("prefer_model_recommended", False) and "resolution" in recommended:
+        return str(recommended["resolution"])
+    return job.resolution
+
+
+def _effective_outputs(job: Job, model: dict[str, Any]) -> int:
+    recommended = model.get("recommended", {})
+    if model.get("prefer_model_recommended", False) and "outputs" in recommended:
+        return int(recommended["outputs"])
+    return job.outputs
 
 
 def _load_first_image(job: Job, root: Path, image_module):

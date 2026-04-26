@@ -1,6 +1,28 @@
 {
   "models": [
     {
+      "name": "tiny-stable-diffusion-smoke-test",
+      "type": "diffusers",
+      "domain": "smoke-test",
+      "path": "hf-internal-testing/tiny-stable-diffusion-pipe",
+      "enabled": true,
+      "cache_dir": "models/hf-cache",
+      "disable_safety_checker": true,
+      "prefer_model_recommended": true,
+      "supports": [
+        "text_to_image",
+        "image_to_image",
+        "batch_variation"
+      ],
+      "recommended": {
+        "resolution": "64x64",
+        "steps": 2,
+        "guidance_scale": 1.0,
+        "outputs": 1
+      },
+      "notes": "Tiny validation model for proving the real diffusers execution path. Replace with a production anime/SDXL model for useful output quality."
+    },
+    {
       "name": "example-sdxl",
       "type": "diffusers",
       "domain": "general",

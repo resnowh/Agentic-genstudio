@@ -9,6 +9,36 @@ Creator Agent.
 - `image_to_image`
 - `inpaint`
 
+## Current Real-Output Mode
+
+The project is currently configured with a tiny diffusers model:
+
+```text
+hf-internal-testing/tiny-stable-diffusion-pipe
+```
+
+This is a smoke-test model, not a production anime model. It proves that the
+agent can route a natural-language request through the real diffusers backend,
+load a model, use CUDA, save an image, and record metadata.
+
+Run:
+
+```powershell
+.\scripts\run_real_smoke_test.bat
+```
+
+Expected result:
+
+```text
+backend: diffusers
+status: completed
+outputs: outputs/<job_id>/image_001.png
+metadata_path: outputs/<job_id>/diffusers_metadata.json
+```
+
+Useful image quality requires replacing the smoke-test model with a production
+anime/SDXL model in `manifests/models.json`.
+
 ## Local Environment
 
 Use a local environment, not the system Python. PyTorch support is usually best

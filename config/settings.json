@@ -1,9 +1,10 @@
 {
   "workspace": "D:/ProgramData/WorkSpace/ImageGenerator",
-  "default_backend": "dry_run",
+  "default_backend": "diffusers",
   "preferred_style": "anime",
-  "default_resolution": "1024x1024",
-  "default_outputs": 4,
+  "default_resolution": "512x512",
+  "default_outputs": 1,
+  "model_cache_dir": "models/hf-cache",
   "default_models": {
     "text_to_image": null,
     "image_to_image": null,
@@ -14,8 +15,8 @@
       "enabled": true
     },
     "diffusers": {
-      "enabled": false,
-      "service_url": "http://127.0.0.1:7861"
+      "enabled": true,
+      "service_url": "local"
     },
     "comfyui": {
       "enabled": false,

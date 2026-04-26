@@ -56,6 +56,15 @@ python -m codex_creator.cli "Use reference.png to keep the character face and ch
 The command writes job records under `jobs/` and generated placeholders under
 `outputs/`. Real image generation backends are wired in later through adapters.
 
+Run a real diffusers smoke test:
+
+```powershell
+.\scripts\run_real_smoke_test.bat
+```
+
+This uses a tiny validation model and writes a real generated PNG under
+`outputs/<job_id>/image_001.png`.
+
 ## Real Generation Backend
 
 The first real backend target is `diffusers`. See:

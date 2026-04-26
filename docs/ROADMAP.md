@@ -18,6 +18,8 @@ backends that the agent can choose automatically.
 - Jobs, outputs, manifests, and backend adapters are structured.
 - `dry_run` validates planning, routing, and persistence.
 - The diffusers backend is wired for text-to-image, image-to-image, and inpaint.
+- The first real-output smoke-test model is configured and can generate PNG
+  files through the diffusers backend.
 - The isolated `.venv-diffusers` environment is installed without touching the
   system Python.
 - Verified GPU stack: Python 3.12.13, torch 2.11.0+cu130, torchvision
@@ -25,9 +27,9 @@ backends that the agent can choose automatically.
 
 ## Immediate Gap
 
-The runtime is ready, but no production image-generation model is configured
-yet. Real image output requires adding a local SDXL/anime model and enabling it
-in the model manifest.
+The runtime and real-output smoke test are ready, but no production
+image-generation model is configured yet. Useful image quality requires adding a
+local SDXL/anime model and enabling it in the model manifest.
 
 ## Product Principles
 
