@@ -4,6 +4,12 @@ set "ROOT=%~dp0.."
 set "ENV=%ROOT%\.venv-diffusers"
 set "MODEL_DIR=%ROOT%\models\diffusers\animagine-xl-4.0"
 set "HF_HUB_DISABLE_SYMLINKS_WARNING=1"
+set "HF_HUB_ENABLE_HF_TRANSFER=0"
+set "HTTP_PROXY="
+set "HTTPS_PROXY="
+set "ALL_PROXY="
+set "GIT_HTTP_PROXY="
+set "GIT_HTTPS_PROXY="
 
 if not exist "%ENV%\Scripts\hf.exe" (
   echo Missing %ENV%\Scripts\hf.exe
@@ -17,10 +23,20 @@ echo Downloading cagliostrolab/animagine-xl-4.0 to:
 echo %MODEL_DIR%
 echo.
 echo Keep this window open. Hugging Face will show per-file progress.
+echo If this stalls while anonymous, run scripts\login_huggingface.bat and retry.
 
 "%ENV%\Scripts\hf.exe" download cagliostrolab/animagine-xl-4.0 ^
   --local-dir "%MODEL_DIR%" ^
-  --max-workers 4
+  --max-workers 1 ^
+  --include "README.md" ^
+  --include "model_index.json" ^
+  --include "scheduler/*" ^
+  --include "text_encoder/*" ^
+  --include "text_encoder_2/*" ^
+  --include "tokenizer/*" ^
+  --include "tokenizer_2/*" ^
+  --include "unet/*" ^
+  --include "vae/*"
 
 if errorlevel 1 (
   echo.
