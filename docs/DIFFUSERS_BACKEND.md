@@ -39,6 +39,10 @@ metadata_path: outputs/<job_id>/diffusers_metadata.json
 Useful image quality requires replacing the smoke-test model with a production
 anime/SDXL model in `manifests/models.json`.
 
+The first production anime target is documented in:
+
+[PRODUCTION_ANIME_MODEL.md](PRODUCTION_ANIME_MODEL.md)
+
 ## Local Environment
 
 Use a local environment, not the system Python. PyTorch support is usually best

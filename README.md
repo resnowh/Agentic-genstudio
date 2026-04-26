@@ -75,6 +75,10 @@ For current status and the long-term feature plan, see:
 
 [docs/ROADMAP.md](docs/ROADMAP.md)
 
+For the production anime model setup, see:
+
+[docs/PRODUCTION_ANIME_MODEL.md](docs/PRODUCTION_ANIME_MODEL.md)
+
 Create the isolated generation environment:
 
 ```powershell

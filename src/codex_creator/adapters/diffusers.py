@@ -58,7 +58,7 @@ class DiffusersAdapter(BackendAdapter):
         from diffusers import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
         from PIL import Image
 
-        model_path = model["path"]
+        model_path = _resolve_model_path(model, self.root)
         width, height = _parse_resolution(_effective_resolution(job, model))
         output_count = _effective_outputs(job, model)
         out_dir = self.root / "outputs" / job.job_id
@@ -78,13 +78,17 @@ class DiffusersAdapter(BackendAdapter):
             common_kwargs["variant"] = model["variant"]
         if "use_safetensors" in model:
             common_kwargs["use_safetensors"] = bool(model["use_safetensors"])
+        if "custom_pipeline" in model:
+            common_kwargs["custom_pipeline"] = model["custom_pipeline"]
+        if "add_watermarker" in model:
+            common_kwargs["add_watermarker"] = bool(model["add_watermarker"])
         device = "cuda" if torch.cuda.is_available() else "cpu"
 
         if job.task_type in {"text_to_image", "batch_variation"}:
             pipe = AutoPipelineForText2Image.from_pretrained(model_path, **common_kwargs).to(device)
             result = pipe(
-                prompt=job.prompt,
-                negative_prompt=job.parameters.get("negative_prompt"),
+                prompt=_effective_prompt(job, model),
+                negative_prompt=_effective_negative_prompt(job, model),
                 width=width,
                 height=height,
                 num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
@@ -95,9 +99,9 @@ class DiffusersAdapter(BackendAdapter):
             source = _load_first_image(job, self.root, Image)
             pipe = AutoPipelineForImage2Image.from_pretrained(model_path, **common_kwargs).to(device)
             result = pipe(
-                prompt=job.prompt,
+                prompt=_effective_prompt(job, model),
                 image=source,
-                negative_prompt=job.parameters.get("negative_prompt"),
+                negative_prompt=_effective_negative_prompt(job, model),
                 strength=float(job.parameters.get("denoise", 0.45)),
                 num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
                 guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
@@ -108,10 +112,10 @@ class DiffusersAdapter(BackendAdapter):
             mask = _load_mask_image(job, self.root, Image)
             pipe = AutoPipelineForInpainting.from_pretrained(model_path, **common_kwargs).to(device)
             result = pipe(
-                prompt=job.prompt,
+                prompt=_effective_prompt(job, model),
                 image=source,
                 mask_image=mask,
-                negative_prompt=job.parameters.get("negative_prompt"),
+                negative_prompt=_effective_negative_prompt(job, model),
                 strength=float(job.parameters.get("denoise", 0.6)),
                 num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
                 guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
@@ -176,6 +180,16 @@ def _resolve_model_cache(path_text: str, root: Path) -> Path:
     return root / path
 
 
+def _resolve_model_path(model: dict[str, Any], root: Path) -> str:
+    path_text = model["path"]
+    path = Path(path_text)
+    if not path.is_absolute():
+        path = root / path
+    if path.exists():
+        return str(path)
+    return str(model.get("remote_path", path_text))
+
+
 def _recommended_value(job: Job, model: dict[str, Any], name: str, default: Any) -> Any:
     recommended = model.get("recommended", {})
     if model.get("prefer_model_recommended", False):
@@ -188,6 +202,21 @@ def _recommended_value(job: Job, model: dict[str, Any], name: str, default: Any)
     if name == "cfg" and "guidance_scale" in recommended:
         return recommended["guidance_scale"]
     return recommended.get(name, default)
+
+
+def _effective_prompt(job: Job, model: dict[str, Any]) -> str:
+    prompt = job.prompt.strip()
+    suffix = str(model.get("prompt_suffix", "")).strip()
+    if suffix and suffix.lower() not in prompt.lower():
+        prompt = f"{prompt}, {suffix}"
+    return prompt
+
+
+def _effective_negative_prompt(job: Job, model: dict[str, Any]) -> str | None:
+    if job.parameters.get("negative_prompt"):
+        return str(job.parameters["negative_prompt"])
+    negative = str(model.get("negative_prompt", "")).strip()
+    return negative or None
 
 
 def _effective_resolution(job: Job, model: dict[str, Any]) -> str:

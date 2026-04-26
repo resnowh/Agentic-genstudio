@@ -31,6 +31,8 @@ class AssetManager:
             if model.get("type") != backend:
                 continue
             if task_type in model.get("supports", []):
+                if not self._model_is_available(model):
+                    continue
                 return model
         default_name = self.settings().get("default_models", {}).get(task_type)
         if default_name:
@@ -41,6 +43,23 @@ class AssetManager:
                 "supports": [task_type],
             }
         return None
+
+    def _model_is_available(self, model: dict[str, Any]) -> bool:
+        if not model.get("require_local", False):
+            return True
+        path_text = model.get("path")
+        if not path_text:
+            return False
+        path = Path(path_text)
+        if not path.is_absolute():
+            path = self.root / path
+        if not path.exists():
+            return False
+        required_files = model.get("required_files", [])
+        for pattern in required_files:
+            if not any(path.glob(pattern)):
+                return False
+        return True
 
     def settings(self) -> dict[str, Any]:
         settings_path = self.root / "config" / "settings.json"

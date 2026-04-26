@@ -1,6 +1,40 @@
 {
   "models": [
     {
+      "name": "animagine-xl-4.0",
+      "type": "diffusers",
+      "domain": "anime",
+      "path": "models/diffusers/animagine-xl-4.0",
+      "remote_path": "cagliostrolab/animagine-xl-4.0",
+      "enabled": true,
+      "require_local": true,
+      "required_files": [
+        "model_index.json",
+        "unet/*.safetensors",
+        "vae/*.safetensors",
+        "text_encoder/*.safetensors",
+        "text_encoder_2/*.safetensors"
+      ],
+      "cache_dir": "models/hf-cache",
+      "use_safetensors": true,
+      "custom_pipeline": "lpw_stable_diffusion_xl",
+      "add_watermarker": false,
+      "prompt_suffix": "masterpiece, high score, great score, absurdres",
+      "negative_prompt": "lowres, bad anatomy, bad hands, text, error, missing finger, extra digits, fewer digits, cropped, worst quality, low quality, low score, bad score, average score, signature, watermark, username, blurry",
+      "supports": [
+        "text_to_image",
+        "image_to_image",
+        "batch_variation"
+      ],
+      "recommended": {
+        "resolution": "1024x1024",
+        "steps": 28,
+        "guidance_scale": 5.0,
+        "outputs": 1
+      },
+      "notes": "Production anime SDXL model. Download with scripts/download_animagine_xl_4.bat before use."
+    },
+    {
       "name": "tiny-stable-diffusion-smoke-test",
       "type": "diffusers",
       "domain": "smoke-test",
