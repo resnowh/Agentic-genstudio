@@ -3,6 +3,7 @@ const planOutput = document.querySelector("#planOutput");
 const runOutput = document.querySelector("#runOutput");
 const statusEl = document.querySelector("#status");
 const jobsEl = document.querySelector("#jobs");
+const galleryEl = document.querySelector("#gallery");
 
 function pretty(value) {
   return JSON.stringify(value, null, 2);
@@ -32,8 +33,26 @@ async function refreshJobs() {
       const detail = await fetch(`/api/jobs/${job.job_id}`).then((r) => r.json());
       planOutput.textContent = pretty(detail.job);
       runOutput.textContent = pretty(detail.result || {});
+      renderGallery(detail.result || {});
+      statusEl.textContent = detail.result?.status || "job loaded";
     });
     jobsEl.appendChild(item);
+  }
+}
+
+function renderGallery(result) {
+  const urls = result.output_urls || [];
+  galleryEl.innerHTML = "";
+  galleryEl.classList.toggle("empty", urls.length === 0);
+  if (!urls.length) {
+    galleryEl.innerHTML = `<div class="empty-state">No image outputs for this job yet.</div>`;
+    return;
+  }
+  for (const url of urls) {
+    const figure = document.createElement("figure");
+    figure.className = "shot";
+    figure.innerHTML = `<img src="${url}" alt="Generated output"><figcaption>${url.split("/").pop()}</figcaption>`;
+    galleryEl.appendChild(figure);
   }
 }
 
@@ -56,6 +75,7 @@ document.querySelector("#composer").addEventListener("submit", async (event) => 
     const data = await postJSON("/api/run", { prompt: promptEl.value });
     planOutput.textContent = pretty(data.job);
     runOutput.textContent = pretty(data.result);
+    renderGallery(data.result);
     statusEl.textContent = data.result.status;
     await refreshJobs();
   } catch (error) {
@@ -65,4 +85,4 @@ document.querySelector("#composer").addEventListener("submit", async (event) => 
 });
 
 refreshJobs();
-
+renderGallery({});

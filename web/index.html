@@ -13,8 +13,9 @@
           <div>
             <p class="eyebrow">Local AI creation agent</p>
             <h1>Agentic GenStudio</h1>
+            <p class="subtitle">Natural language in, Animagine-powered images out.</p>
           </div>
-          <div class="status" id="status">dry-run ready</div>
+          <div class="status" id="status">animagine ready</div>
         </header>
 
         <form class="composer" id="composer">
@@ -26,6 +27,12 @@
         </form>
 
         <section class="result-grid">
+          <article class="panel image-panel">
+            <div class="panel-title">Generated Images</div>
+            <div id="gallery" class="gallery empty">
+              <div class="empty-state">Run a prompt to render images here.</div>
+            </div>
+          </article>
           <article class="panel">
             <div class="panel-title">Planned Job</div>
             <pre id="planOutput">{}</pre>
@@ -45,4 +52,3 @@
     <script src="/app.js"></script>
   </body>
 </html>
-

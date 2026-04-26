@@ -24,7 +24,9 @@ class CreatorWebApp:
     def run(self, prompt: str) -> dict:
         job = plan(prompt)
         result = self.executor.run(job)
-        return {"job": job.to_dict(), "result": result.to_dict()}
+        payload = result.to_dict()
+        payload["output_urls"] = [self.public_output_url(path) for path in result.outputs]
+        return {"job": job.to_dict(), "result": payload}
 
     def list_jobs(self, limit: int = 20) -> list[dict]:
         job_dir = self.root / "jobs"
@@ -39,10 +41,23 @@ class CreatorWebApp:
         result_path = self.root / "jobs" / f"{job_id}.result.json"
         if not job_path.exists():
             raise FileNotFoundError(job_id)
+        result = _read_json(result_path) if result_path.exists() else None
+        if result:
+            result["output_urls"] = [self.public_output_url(path) for path in result.get("outputs", [])]
         return {
             "job": _read_json(job_path),
-            "result": _read_json(result_path) if result_path.exists() else None,
+            "result": result,
         }
+
+    def public_output_url(self, path_text: str) -> str:
+        path = Path(path_text)
+        if not path.is_absolute():
+            path = (self.root / path).resolve()
+        outputs_dir = (self.root / "outputs").resolve()
+        if not str(path).startswith(str(outputs_dir)):
+            raise ValueError(f"Output path is outside outputs directory: {path}")
+        rel = path.relative_to(outputs_dir).as_posix()
+        return f"/outputs/{rel}"
 
 
 def make_handler(app: CreatorWebApp):
@@ -60,6 +75,10 @@ def make_handler(app: CreatorWebApp):
                 if parsed.path.startswith("/api/jobs/"):
                     job_id = parsed.path.rsplit("/", maxsplit=1)[-1]
                     self._json(app.get_job(job_id))
+                    return
+                if parsed.path.startswith("/outputs/"):
+                    rel = parsed.path.removeprefix("/outputs/")
+                    self._file((app.root / "outputs" / rel).resolve(), (app.root / "outputs").resolve())
                     return
                 self._static(parsed.path)
             except FileNotFoundError:
@@ -105,8 +124,12 @@ def make_handler(app: CreatorWebApp):
         def _static(self, path: str) -> None:
             rel = "index.html" if path in {"", "/"} else path.lstrip("/")
             target = (app.static_dir / rel).resolve()
-            if not str(target).startswith(str(app.static_dir.resolve())) or not target.exists():
-                raise FileNotFoundError(rel)
+            self._file(target, app.static_dir.resolve(), rel)
+
+        def _file(self, target: Path, root: Path, rel: str | None = None) -> None:
+            label = rel or target.name
+            if not str(target).startswith(str(root)) or not target.exists():
+                raise FileNotFoundError(label)
             body = target.read_bytes()
             mime = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
             self.send_response(HTTPStatus.OK)
@@ -128,4 +151,3 @@ def serve(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
-
