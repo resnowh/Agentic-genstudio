@@ -62,6 +62,10 @@ The first real backend target is `diffusers`. See:
 
 [docs/DIFFUSERS_BACKEND.md](docs/DIFFUSERS_BACKEND.md)
 
+For current status and the long-term feature plan, see:
+
+[docs/ROADMAP.md](docs/ROADMAP.md)
+
 Create the isolated generation environment:
 
 ```powershell
