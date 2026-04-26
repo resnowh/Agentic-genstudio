@@ -1,116 +1,125 @@
 # Roadmap
 
 Agentic GenStudio is a local AI creation studio controlled by natural language.
-The user describes the creative goal; the agent plans the task, selects models
-and backends, manages assets, runs generation or training, and records outputs.
+The long-term goal is not to expose workflow graphs; it is to let the user
+describe a creative outcome and let the system choose the right local tools.
 
-The product goal is not to expose advanced node graphs to the user. ComfyUI,
-diffusers, trainers, 3D engines, and future tools are internal execution
-backends that the agent can choose automatically.
+## Current Stage
 
-## Current Status
+The project is now past pure scaffolding and into a usable local prototype.
 
-- GitHub project scaffold is active.
-- Local CLI and web app can accept natural-language tasks.
-- The planner can detect text-to-image, image-to-image, inpaint, character
-  reference, pose transfer, style training, character training, image-to-3D,
-  upscale, and batch variation intents.
-- Jobs, outputs, manifests, and backend adapters are structured.
-- `dry_run` validates planning, routing, and persistence.
-- The diffusers backend is wired for text-to-image, image-to-image, and inpaint.
-- The first real-output smoke-test model is configured and can generate PNG
-  files through the diffusers backend.
-- The isolated `.venv-diffusers` environment is installed without touching the
-  system Python.
-- Verified GPU stack: Python 3.12.13, torch 2.11.0+cu130, torchvision
-  0.26.0+cu130, CUDA 13.0, NVIDIA GeForce RTX 5080 Laptop GPU.
+Implemented:
 
-## Immediate Gap
+- local CLI and local web app
+- unified job schema
+- backend routing
+- local job and result persistence
+- real local text-to-image with `diffusers`
+- production anime model wiring with `Animagine XL 4.0`
+- progress tracking
+- history preview and deletion
+- rule-based Chinese prompt adaptation
+- default negative prompt handling
 
-The runtime and real-output smoke test are ready, but no production
-image-generation model is configured yet. Useful image quality requires adding a
-local SDXL/anime model and enabling it in the model manifest.
+Not yet production-complete:
+
+- polished image upload flow
+- polished image-to-image and inpaint UX
+- character consistency control
+- pose control
+- training flows
+- 3D workflows
 
 ## Product Principles
 
-- Natural-language first: the user gives goals, not workflow parameters.
-- Agent-owned workflow: model choice, adapter choice, prompt expansion, retry
-  strategy, and technical parameters are internal decisions.
-- Local-first execution: user assets, jobs, outputs, and models stay on the
-  local machine unless explicitly configured otherwise.
-- Backend-agnostic design: diffusers, ComfyUI, training engines, and 3D engines
-  are interchangeable tools behind a common job interface.
-- Reproducible outputs: every job should record inputs, selected models,
-  generated files, parameters, and errors.
+- natural-language first
+- local-first execution
+- backend-agnostic architecture
+- reproducible job records
+- hidden workflow complexity
 
 ## Phase 1: Local Orchestrator MVP
 
-- Natural-language planner.
-- Unified job schema.
-- Asset manifests.
-- Dry-run backend.
-- Job and output records.
+- planner
+- unified job contract
+- manifests
+- router
+- executor
+- dry-run backend
 
-Status: implemented.
+Status: complete.
 
 ## Phase 2: Real Image Generation
 
-- Add and configure the first production anime/SDXL model.
-- Enable diffusers routing for real generation.
-- Add text-to-image execution.
-- Add image-to-image execution.
-- Add inpaint execution.
-- Add prompt expansion and negative prompt presets.
-- Add model selection rules for anime, realistic, stylized, and utility tasks.
-- Add output gallery metadata.
+- production anime model
+- real diffusers execution
+- web progress UI
+- output gallery
+- history preview
+- Chinese prompt adaptation
+- negative prompt defaults
 
-Target outcome: the user can type a natural-language request and receive real
-images without touching model paths or workflow settings.
+Status: partially complete.
+
+Remaining in this phase:
+
+- stronger prompt adaptation
+- prompt length control
+- stable image-to-image and inpaint browser flow
+- better model selection rules
 
 ## Phase 3: Character Control
 
-- Add reference-character generation.
-- Add pose transfer from text, pose images, or detected skeletons.
-- Add OpenPose/DWPose preprocessing.
-- Add IP-Adapter, FaceID, or equivalent identity-preservation routing.
-- Add ControlNet routing for pose, depth, lineart, tile, and inpaint control.
-- Add character cards that store reference images, trigger phrases, preferred
-  models, LoRAs, and notes.
-- Add automatic retry rules.
+- reference-character generation
+- identity preservation
+- pose transfer
+- OpenPose or DWPose preprocessing
+- ControlNet routing
+- IP-Adapter or FaceID-style routing
 
-Target outcome: the user can say "keep this character, change the action to
-sitting by a window" and the agent chooses the right reference and pose-control
-pipeline.
+Target outcome:
+
+```text
+Keep this character, change the pose to sitting by a window.
+```
+
+The system should choose the right reference and pose-control pipeline without
+manual workflow editing.
 
 ## Phase 4: Training
 
-- Add dataset intake.
-- Add image cleaning and captioning hooks.
-- Add character LoRA training.
-- Add style LoRA training.
-- Add LoRA test grid generation.
-- Add character and style cards.
-- Add training job history, checkpoints, validation prompts, and comparison
-  galleries.
+- dataset intake
+- captioning hooks
+- character LoRA training
+- style LoRA training
+- test-grid generation
+- reusable character/style cards
 
-Target outcome: the user can provide example images and ask the agent to learn a
-character or art style, then reuse that learned asset in future generations.
+Target outcome:
+
+The user can teach a character or style locally and reuse it later through the
+same natural-language interface.
 
 ## Phase 5: 3D
 
-- Add image-to-3D adapter.
-- Add mesh and texture export.
-- Add Blender preview rendering.
-- Add GLB/OBJ/FBX output management.
+- image-to-3D adapter
+- mesh export
+- texture export
+- preview rendering
+- GLB/OBJ/FBX output management
 
-Target outcome: the user can provide or generate a character image and request a
-3D asset export without configuring the 3D backend manually.
+## Near-Term Priorities
 
-## Later Capabilities
+1. strengthen the prompt adapter
+2. finish browser-side image input flow
+3. stabilize image-to-image and inpaint
+4. add character consistency tooling
+5. add pose control
 
-- Batch generation, ranking, and automatic best-pick selection.
-- Upscale, face/detail repair, and final polish passes.
-- Multi-pass story or comic workflows with character consistency.
-- Prompt library and reusable creative presets.
-- Safety and content policy controls per backend/model.
-- Plugin-style backend registration so other agents can control the same studio.
+## Later Work
+
+- batch ranking and best-pick selection
+- upscale and repair passes
+- comic or multi-panel workflows
+- reusable prompt libraries
+- plugin-style backend registration

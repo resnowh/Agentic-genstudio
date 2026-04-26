@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from .prompt_adapter import adapt_prompt
 from .schemas import Job, SUPPORTED_TASKS
 
 
@@ -19,7 +20,7 @@ def _extract_outputs(text: str, default: int = 4) -> int:
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
-            return max(1, min(32, int(match.group(1))))
+            return max(1, min(12, int(match.group(1))))
     return default
 
 
@@ -101,6 +102,9 @@ def plan(prompt: str, task_type_override: str | None = None) -> Job:
 
     style = "anime" if _contains_any(lower, ["anime"]) else None
 
+    parameters = _recommended_parameters(task_type, style)
+    parameters.update(adapt_prompt(text))
+
     return Job(
         prompt=text,
         task_type=task_type,
@@ -110,7 +114,7 @@ def plan(prompt: str, task_type_override: str | None = None) -> Job:
         style=style,
         outputs=_extract_outputs(text),
         resolution=_extract_resolution(text),
-        parameters=_recommended_parameters(task_type, style),
+        parameters=parameters,
     )
 
 

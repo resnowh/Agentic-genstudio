@@ -1,25 +1,49 @@
 # Diffusers Backend
 
-The diffusers backend is the first real image-generation backend for Codex
-Creator Agent.
+`diffusers` is the first real local image-generation backend in Agentic
+GenStudio.
 
-## What It Supports
+## Current Support
 
 - `text_to_image`
 - `image_to_image`
 - `inpaint`
+- `batch_variation`
 
-## Current Real-Output Mode
+Practical status today:
 
-The project is currently configured with a tiny diffusers model:
+- `text_to_image` is verified with the local production anime model
+- `image_to_image` and `inpaint` are implemented at the adapter level but still
+  need a stronger end-to-end user flow in the web app
+
+## Production Model
+
+Current production anime model:
+
+```text
+cagliostrolab/animagine-xl-4.0
+```
+
+Configured locally as:
+
+```text
+models/diffusers/animagine-xl-4.0
+```
+
+Model manifest:
+
+`manifests/models.json`
+
+## Smoke-Test Model
+
+The project also keeps a tiny validation model:
 
 ```text
 hf-internal-testing/tiny-stable-diffusion-pipe
 ```
 
-This is a smoke-test model, not a production anime model. It proves that the
-agent can route a natural-language request through the real diffusers backend,
-load a model, use CUDA, save an image, and record metadata.
+This exists to verify the full execution path with a minimal download. It is
+not suitable for production output quality.
 
 Run:
 
@@ -27,47 +51,36 @@ Run:
 .\scripts\run_real_smoke_test.bat
 ```
 
-Expected result:
+## Prompt Path
 
-```text
-backend: diffusers
-status: completed
-outputs: outputs/<job_id>/image_001.png
-metadata_path: outputs/<job_id>/diffusers_metadata.json
-```
+`diffusers` does not always receive the raw user prompt directly.
 
-Useful image quality requires replacing the smoke-test model with a production
-anime/SDXL model in `manifests/models.json`.
+The effective inference prompt is:
 
-The first production anime target is documented in:
+1. original user prompt
+2. adapted by the local prompt adapter when needed
+3. stored as `parameters.positive_prompt`
+4. merged with model quality suffix tags
+5. deduplicated before inference
 
-[PRODUCTION_ANIME_MODEL.md](PRODUCTION_ANIME_MODEL.md)
+The negative prompt is:
 
-## Local Environment
+1. default or adapted `parameters.negative_prompt`
+2. merged with model manifest negative tags
+3. deduplicated before inference
 
-Use a local environment, not the system Python. PyTorch support is usually best
-on Python 3.11 or 3.12.
+This keeps the original prompt auditable while still feeding the model a
+cleaner prompt.
 
-Recommended setup for this workspace:
+## Runtime
+
+Use the isolated local environment:
 
 ```powershell
 .\scripts\setup_diffusers_env.bat
 ```
 
-This creates `.venv-diffusers` without touching the system Python.
-
-For large downloads with visible progress, use the two-step flow:
-
-```powershell
-.\scripts\download_torch_wheels.bat
-.\scripts\install_torch_from_downloads.bat
-```
-
-If package-manager downloads are unreliable, see:
-
-[MANUAL_TORCH_INSTALL.md](MANUAL_TORCH_INSTALL.md)
-
-The verified GPU stack for the RTX 5080 Laptop GPU is:
+Verified GPU stack for the current machine family:
 
 ```text
 Python 3.12.13
@@ -76,36 +89,39 @@ torchvision 0.26.0+cu130
 CUDA runtime 13.0
 ```
 
-Run the agent with that interpreter:
+Verification:
 
 ```powershell
-.\scripts\run_agent_diffusers.bat "生成一个二次元银发蓝眼女孩，雨夜街道，输出4张"
+.\scripts\verify_diffusers_env.bat
 ```
 
-Run the web app with that interpreter:
+## Run Paths
+
+CLI:
+
+```powershell
+.\scripts\run_agent_diffusers.bat "Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images"
+```
+
+Web:
 
 ```powershell
 .\scripts\run_web_diffusers.bat
 ```
 
-## Enabling
+## Output Contract
 
-Set `config/settings.json`:
+Expected result shape:
 
-```json
-"diffusers": {
-  "enabled": true,
-  "service_url": "local"
-}
+```text
+backend: diffusers
+status: completed | blocked | error
+outputs: outputs/<job_id>/image_001.png ...
+metadata_path: outputs/<job_id>/diffusers_metadata.json
 ```
 
-Then enable or add a model in `manifests/models.json`.
+## Known Limits
 
-For Hugging Face models, `path` may be a model id such as:
-
-```json
-"path": "stabilityai/stable-diffusion-xl-base-1.0"
-```
-
-For local models, `path` may be an absolute local directory compatible with
-diffusers.
+- the current prompt adapter is rule-based, not semantic translation
+- long prompt strings can still trigger tokenizer length warnings
+- image-to-image and inpaint are not yet fully polished in the browser workflow

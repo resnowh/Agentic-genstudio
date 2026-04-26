@@ -1,40 +1,50 @@
-# Codex Creator Agent
+# Agentic GenStudio
 
-Local AI creation orchestrator controlled by natural language.
+Local AI image-generation studio controlled by natural language.
 
-The goal is to keep the user-facing surface simple:
+The project goal is to keep the user-facing surface simple:
 
 ```text
-Create an anime character from this reference image, keep the same face,
-change the pose to sitting by a window, and output 4 images.
+Use this character reference, keep the same face, change the pose to sitting
+by a window, and output 4 images.
 ```
 
-Codex Creator Agent converts that request into a structured job, selects a
-backend, records all assets and parameters, and leaves backend-specific
-workflow details hidden.
+The app converts that request into a structured local job, selects a backend,
+applies prompt adaptation, runs generation, and records the result.
 
-## Current Status
+## What Exists Today
 
-This repository is the first local scaffold:
+- Local CLI and local web app.
+- Real local text-to-image with `diffusers` and `Animagine XL 4.0`.
+- Rule-based Chinese prompt adaptation to model-friendly English tags.
+- Automatic negative prompt defaults.
+- Generation progress, gallery preview, and recent-job history.
+- Local job/result persistence under `jobs/` and `outputs/`.
+- Isolated `.venv-diffusers` runtime. No system Python pollution.
 
-- Natural-language intent planning.
-- Unified job schema.
-- Asset manifest layout.
-- Backend adapter interfaces.
-- Dry-run execution that validates routing without installing heavy AI stacks.
-- Diffusers adapter for real text-to-image, image-to-image, and inpaint execution once a local model is configured.
+## Current Scope
 
-No global Python packages are required for this version.
+Working now:
+
+- `text_to_image`
+- basic `image_to_image` backend wiring
+- basic `inpaint` backend wiring
+- custom resolution
+- 1-12 output images
+- history preview and deletion
+
+Not production-ready yet:
+
+- robust Chinese semantic prompt understanding
+- web upload flow for source images and masks
+- identity preservation
+- pose control
+- LoRA training
+- image-to-3D
 
 ## Quick Start
 
-From this directory:
-
-```powershell
-.\scripts\run_agent.bat "Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images"
-```
-
-Run the local web app:
+Run the web app:
 
 ```powershell
 .\scripts\run_web.bat
@@ -46,6 +56,12 @@ Then open:
 http://127.0.0.1:8765
 ```
 
+Run the CLI:
+
+```powershell
+.\scripts\run_agent.bat "Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images"
+```
+
 Or:
 
 ```powershell
@@ -53,40 +69,15 @@ $env:PYTHONPATH="D:\ProgramData\WorkSpace\ImageGenerator\src"
 python -m codex_creator.cli "Use reference.png to keep the character face and change the pose to sitting"
 ```
 
-The command writes job records under `jobs/` and generated placeholders under
-`outputs/`. Real image generation backends are wired in later through adapters.
+## Local Runtime
 
-Run a real diffusers smoke test:
-
-```powershell
-.\scripts\run_real_smoke_test.bat
-```
-
-This uses a tiny validation model and writes a real generated PNG under
-`outputs/<job_id>/image_001.png`.
-
-## Real Generation Backend
-
-The first real backend target is `diffusers`. See:
-
-[docs/DIFFUSERS_BACKEND.md](docs/DIFFUSERS_BACKEND.md)
-
-For current status and the long-term feature plan, see:
-
-[docs/ROADMAP.md](docs/ROADMAP.md)
-
-For the production anime model setup, see:
-
-[docs/PRODUCTION_ANIME_MODEL.md](docs/PRODUCTION_ANIME_MODEL.md)
-
-Create the isolated generation environment:
+Create the isolated runtime:
 
 ```powershell
 .\scripts\setup_diffusers_env.bat
 ```
 
-For the verified RTX 5080 Laptop GPU route, install PyTorch CUDA 13.0 into the
-isolated `.venv-diffusers` environment:
+Install the verified RTX 5080 Laptop GPU stack:
 
 ```powershell
 .\scripts\install_torch_from_downloads.bat
@@ -94,18 +85,63 @@ isolated `.venv-diffusers` environment:
 .\scripts\verify_diffusers_env.bat
 ```
 
-Manual download links and recovery steps are documented in
-[docs/MANUAL_TORCH_INSTALL.md](docs/MANUAL_TORCH_INSTALL.md).
+## Models
 
-## Project Layout
+Production anime model:
 
 ```text
-config/       Local settings.
-docs/         Architecture and implementation plan.
-inputs/       User-provided source images.
-jobs/         Job JSON records.
-manifests/    Models, characters, styles, and backend capabilities.
-outputs/      Generated outputs and metadata.
-src/          Codex Creator Agent source.
-web/          Browser UI and client-side assets.
+cagliostrolab/animagine-xl-4.0
 ```
+
+Configured in:
+
+`manifests/models.json`
+
+Download and verify:
+
+```powershell
+.\scripts\download_animagine_xl_4.bat
+.\scripts\verify_animagine_model.bat
+```
+
+Fallback smoke-test model:
+
+```text
+hf-internal-testing/tiny-stable-diffusion-pipe
+```
+
+## Prompt Handling
+
+- The original user prompt is preserved in the job record.
+- Chinese input is processed locally by a rule-based prompt adapter.
+- The adapter writes:
+  - `parameters.prompt_language`
+  - `parameters.positive_prompt`
+  - `parameters.negative_prompt`
+  - `parameters.prompt_adapter`
+- `diffusers` uses the adapted positive prompt for inference.
+
+This is local-only behavior. The prompt is not sent to OpenAI or another cloud
+translation service.
+
+## Output Layout
+
+```text
+jobs/      Job and result JSON records.
+outputs/   Generated images and metadata.
+inputs/    User-provided source images.
+models/    Local models and cache.
+web/       Browser UI assets.
+src/       Application source.
+docs/      Project documentation.
+```
+
+## Documentation Map
+
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+- [docs/WEB_APP.md](docs/WEB_APP.md)
+- [docs/DIFFUSERS_BACKEND.md](docs/DIFFUSERS_BACKEND.md)
+- [docs/PRODUCTION_ANIME_MODEL.md](docs/PRODUCTION_ANIME_MODEL.md)
+- [docs/PROMPT_ADAPTER.md](docs/PROMPT_ADAPTER.md)
+- [docs/ROADMAP.md](docs/ROADMAP.md)
+- [docs/MANUAL_TORCH_INSTALL.md](docs/MANUAL_TORCH_INSTALL.md)

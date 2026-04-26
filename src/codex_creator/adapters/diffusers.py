@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from codex_creator.adapters.base import BackendAdapter
 from codex_creator.assets import AssetManager
@@ -12,7 +12,11 @@ from codex_creator.schemas import ExecutionResult, Job
 class DiffusersAdapter(BackendAdapter):
     name = "diffusers"
 
-    def execute(self, job: Job) -> ExecutionResult:
+    def execute(
+        self,
+        job: Job,
+        progress_callback: Callable[[float, str, str | None], None] | None = None,
+    ) -> ExecutionResult:
         missing = self._missing_dependencies()
         if missing:
             return self._blocked(
@@ -31,7 +35,7 @@ class DiffusersAdapter(BackendAdapter):
             )
 
         try:
-            outputs = self._run_pipeline(job, model)
+            outputs = self._run_pipeline(job, model, progress_callback=progress_callback)
         except Exception as exc:  # noqa: BLE001 - keep backend errors user-visible.
             return self._blocked(job, f"Diffusers execution failed: {exc}")
 
@@ -53,7 +57,12 @@ class DiffusersAdapter(BackendAdapter):
                 missing.append("Pillow" if module == "PIL" else module)
         return missing
 
-    def _run_pipeline(self, job: Job, model: dict[str, Any]) -> list[str]:
+    def _run_pipeline(
+        self,
+        job: Job,
+        model: dict[str, Any],
+        progress_callback: Callable[[float, str, str | None], None] | None = None,
+    ) -> list[str]:
         import torch
         from diffusers import AutoPipelineForImage2Image, AutoPipelineForInpainting, AutoPipelineForText2Image
         from PIL import Image
@@ -83,52 +92,73 @@ class DiffusersAdapter(BackendAdapter):
         if "add_watermarker" in model:
             common_kwargs["add_watermarker"] = bool(model["add_watermarker"])
         device = "cuda" if torch.cuda.is_available() else "cpu"
+        total_steps = int(_recommended_value(job, model, "steps", 28))
+
+        def update_progress(value: float, stage: str, detail: str | None = None) -> None:
+            if progress_callback:
+                progress_callback(value, stage, detail)
+
+        def on_step_end(pipe, step_index, timestep, callback_kwargs):
+            progress = 0.15 + (0.75 * ((step_index + 1) / max(total_steps, 1)))
+            update_progress(progress, "generating", f"Step {step_index + 1} / {total_steps}")
+            return callback_kwargs
 
         if job.task_type in {"text_to_image", "batch_variation"}:
+            update_progress(0.08, "loading_model", f"Loading {model.get('name', model_path)}")
             pipe = AutoPipelineForText2Image.from_pretrained(model_path, **common_kwargs).to(device)
+            update_progress(0.15, "starting", f"Starting {total_steps} denoising steps")
             result = pipe(
                 prompt=_effective_prompt(job, model),
                 negative_prompt=_effective_negative_prompt(job, model),
                 width=width,
                 height=height,
-                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                num_inference_steps=total_steps,
                 guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
                 num_images_per_prompt=output_count,
+                callback_on_step_end=on_step_end,
             )
         elif job.task_type == "image_to_image":
             source = _load_first_image(job, self.root, Image)
+            update_progress(0.08, "loading_model", f"Loading {model.get('name', model_path)}")
             pipe = AutoPipelineForImage2Image.from_pretrained(model_path, **common_kwargs).to(device)
+            update_progress(0.15, "starting", f"Starting {total_steps} denoising steps")
             result = pipe(
                 prompt=_effective_prompt(job, model),
                 image=source,
                 negative_prompt=_effective_negative_prompt(job, model),
                 strength=float(job.parameters.get("denoise", 0.45)),
-                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                num_inference_steps=total_steps,
                 guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
                 num_images_per_prompt=output_count,
+                callback_on_step_end=on_step_end,
             )
         elif job.task_type == "inpaint":
             source = _load_first_image(job, self.root, Image)
             mask = _load_mask_image(job, self.root, Image)
+            update_progress(0.08, "loading_model", f"Loading {model.get('name', model_path)}")
             pipe = AutoPipelineForInpainting.from_pretrained(model_path, **common_kwargs).to(device)
+            update_progress(0.15, "starting", f"Starting {total_steps} denoising steps")
             result = pipe(
                 prompt=_effective_prompt(job, model),
                 image=source,
                 mask_image=mask,
                 negative_prompt=_effective_negative_prompt(job, model),
                 strength=float(job.parameters.get("denoise", 0.6)),
-                num_inference_steps=int(_recommended_value(job, model, "steps", 28)),
+                num_inference_steps=total_steps,
                 guidance_scale=float(_recommended_value(job, model, "cfg", 5.0)),
                 num_images_per_prompt=output_count,
+                callback_on_step_end=on_step_end,
             )
         else:
             raise ValueError(f"Task '{job.task_type}' is not supported by diffusers adapter.")
 
         output_paths = []
+        update_progress(0.93, "saving", "Saving generated image files")
         for index, image in enumerate(result.images, start=1):
             path = out_dir / f"image_{index:03}.png"
             image.save(path)
             output_paths.append(str(path))
+        update_progress(1.0, "completed", "Generation complete")
         return output_paths
 
     def _write_metadata(self, job: Job, model: dict[str, Any], outputs: list[str]) -> Path:
@@ -205,18 +235,38 @@ def _recommended_value(job: Job, model: dict[str, Any], name: str, default: Any)
 
 
 def _effective_prompt(job: Job, model: dict[str, Any]) -> str:
-    prompt = job.prompt.strip()
+    prompt = str(job.parameters.get("positive_prompt") or job.prompt).strip()
     suffix = str(model.get("prompt_suffix", "")).strip()
-    if suffix and suffix.lower() not in prompt.lower():
-        prompt = f"{prompt}, {suffix}"
-    return prompt
+    if not suffix:
+        return prompt
+    tags = _dedupe_prompt_tags([prompt, suffix])
+    return ", ".join(tags)
+
+
+def _dedupe_prompt_tags(parts: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for part in parts:
+        for tag in part.split(","):
+            normalized = tag.strip()
+            if not normalized:
+                continue
+            key = normalized.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            result.append(normalized)
+    return result
 
 
 def _effective_negative_prompt(job: Job, model: dict[str, Any]) -> str | None:
-    if job.parameters.get("negative_prompt"):
-        return str(job.parameters["negative_prompt"])
-    negative = str(model.get("negative_prompt", "")).strip()
-    return negative or None
+    negative = _dedupe_prompt_tags(
+        [
+            str(job.parameters.get("negative_prompt") or ""),
+            str(model.get("negative_prompt", "")),
+        ]
+    )
+    return ", ".join(negative) if negative else None
 
 
 def _effective_resolution(job: Job, model: dict[str, Any]) -> str:

@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title id="pageTitle">灵构绘境</title>
+    <title>灵构绘境</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -24,7 +24,6 @@
                 <option value="ja">日本語</option>
               </select>
             </label>
-            <div class="status" id="status">animagine ready</div>
           </div>
         </header>
 
@@ -33,26 +32,49 @@
             <label class="field">
               <span data-i18n="modeLabel">模式</span>
               <select id="taskType" name="taskType">
-                <option value="text_to_image">Text to Image</option>
-                <option value="image_to_image">Image to Image</option>
-                <option value="inpaint">Inpaint</option>
+                <option value="text_to_image">文生图</option>
+                <option value="image_to_image">图生图</option>
+                <option value="inpaint">局部重绘</option>
               </select>
             </label>
-            <label class="field">
+            <label class="field resolution-field">
               <span data-i18n="resolutionLabel">分辨率</span>
               <select id="resolution" name="resolution">
                 <option value="768x768">768x768</option>
+                <option value="896x1152">896x1152</option>
                 <option value="1024x1024" selected>1024x1024</option>
+                <option value="1152x896">1152x896</option>
                 <option value="1216x832">1216x832</option>
                 <option value="832x1216">832x1216</option>
+                <option value="1344x768">1344x768</option>
+                <option value="768x1344">768x1344</option>
+                <option value="custom">自定义</option>
               </select>
+              <input
+                id="customResolution"
+                name="customResolution"
+                type="text"
+                inputmode="numeric"
+                data-i18n-placeholder="customResolutionPlaceholder"
+                placeholder="例如 1536x1024"
+                hidden
+              >
             </label>
             <label class="field">
               <span data-i18n="outputsLabel">张数</span>
               <select id="outputs" name="outputs">
                 <option value="1" selected>1</option>
                 <option value="2">2</option>
+                <option value="3">3</option>
                 <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
               </select>
             </label>
           </div>
@@ -60,19 +82,31 @@
           <div class="control-row control-row-secondary">
             <label class="field">
               <span data-i18n="sourceLabel">原图路径</span>
-              <input id="sourceImage" name="sourceImage" type="text" data-i18n-placeholder="sourcePlaceholder" placeholder="D:\images\source.png 或相对路径">
+              <input
+                id="sourceImage"
+                name="sourceImage"
+                type="text"
+                data-i18n-placeholder="sourcePlaceholder"
+                placeholder="D:\images\source.png 或相对路径"
+              >
             </label>
             <label class="field">
               <span data-i18n="maskLabel">蒙版路径</span>
-              <input id="maskImage" name="maskImage" type="text" data-i18n-placeholder="maskPlaceholder" placeholder="D:\images\mask.png，用于局部重绘">
+              <input
+                id="maskImage"
+                name="maskImage"
+                type="text"
+                data-i18n-placeholder="maskPlaceholder"
+                placeholder="D:\images\mask.png，用于局部重绘"
+              >
             </label>
           </div>
 
           <textarea id="prompt" name="prompt" rows="7" spellcheck="false">masterpiece, best quality, 1girl, silver hair, blue eyes, rainy neon street, detailed background</textarea>
 
           <div class="actions">
-            <button type="button" id="planBtn" data-i18n="planButton">规划</button>
-            <button type="submit" id="runBtn" data-i18n="runButton">运行</button>
+            <button type="button" id="planBtn" data-i18n="planButton">预览任务</button>
+            <button type="submit" id="runBtn" data-i18n="runButton">开始生成</button>
           </div>
         </form>
 
@@ -80,16 +114,16 @@
           <article class="panel image-panel">
             <div class="panel-title" data-i18n="generatedImages">生成结果</div>
             <div id="gallery" class="gallery empty">
-              <div class="empty-state" id="galleryEmptyText" data-i18n="galleryEmpty">运行后会在这里显示生成图片。</div>
+              <div class="empty-state" data-i18n="galleryEmpty">运行后会在这里显示生成图片。</div>
             </div>
           </article>
           <article class="panel">
-            <div class="panel-title" data-i18n="plannedJob">任务规划</div>
-            <pre id="planOutput">{}</pre>
+            <div class="panel-title" data-i18n="plannedJob">任务预览</div>
+            <div id="planOutput" class="detail-view"></div>
           </article>
           <article class="panel">
             <div class="panel-title" data-i18n="executionResult">执行结果</div>
-            <pre id="runOutput">{}</pre>
+            <div id="runOutput" class="detail-view"></div>
           </article>
         </section>
       </section>

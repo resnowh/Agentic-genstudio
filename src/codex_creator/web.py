@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import shutil
+import threading
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -17,6 +19,7 @@ class CreatorWebApp:
         self.root = root or workspace_path()
         self.static_dir = self.root / "web"
         self.executor = Executor(self.root)
+        self.job_tracker = WebJobTracker()
 
     def plan(self, prompt: str, task_type: str | None = None, input_images: list[str] | None = None) -> dict:
         job = plan(prompt, task_type_override=task_type)
@@ -42,12 +45,40 @@ class CreatorWebApp:
         payload["output_urls"] = [self.public_output_url(path) for path in result.outputs]
         return {"job": job.to_dict(), "result": payload}
 
+    def run_async(
+        self,
+        prompt: str,
+        task_type: str | None = None,
+        input_images: list[str] | None = None,
+        resolution: str | None = None,
+        outputs: int | None = None,
+    ) -> dict:
+        job = plan(prompt, task_type_override=task_type)
+        if input_images is not None:
+            job.input_images = input_images
+        _apply_job_overrides(job, {"resolution": resolution, "outputs": outputs})
+        self.job_tracker.register(job)
+        worker = threading.Thread(target=self._run_job_async, args=(job,), daemon=True)
+        worker.start()
+        return self.job_tracker.snapshot(job.job_id)
+
     def list_jobs(self, limit: int = 20) -> list[dict]:
         job_dir = self.root / "jobs"
         items = sorted(job_dir.glob("*.job.json"), key=lambda p: p.stat().st_mtime, reverse=True)
         jobs: list[dict] = []
         for path in items[:limit]:
-            jobs.append(_read_json(path))
+            job = _read_json(path)
+            result_path = self.root / "jobs" / f"{job['job_id']}.result.json"
+            result = _read_json(result_path) if result_path.exists() else None
+            if result:
+                result["output_urls"] = [self.public_output_url(output) for output in result.get("outputs", [])]
+            jobs.append(
+                {
+                    "job": job,
+                    "result": result,
+                    "preview_url": result["output_urls"][0] if result and result.get("output_urls") else None,
+                }
+            )
         return jobs
 
     def get_job(self, job_id: str) -> dict:
@@ -58,10 +89,29 @@ class CreatorWebApp:
         result = _read_json(result_path) if result_path.exists() else None
         if result:
             result["output_urls"] = [self.public_output_url(path) for path in result.get("outputs", [])]
-        return {
+        payload = {
             "job": _read_json(job_path),
             "result": result,
         }
+        tracked = self.job_tracker.get(job_id)
+        if tracked:
+            payload["progress"] = tracked["progress"]
+            payload["state"] = tracked["state"]
+        return payload
+
+    def delete_job(self, job_id: str) -> dict:
+        job_path = self.root / "jobs" / f"{job_id}.job.json"
+        result_path = self.root / "jobs" / f"{job_id}.result.json"
+        output_dir = self.root / "outputs" / job_id
+        if not job_path.exists():
+            raise FileNotFoundError(job_id)
+
+        job_path.unlink(missing_ok=True)
+        result_path.unlink(missing_ok=True)
+        if output_dir.exists():
+            shutil.rmtree(output_dir)
+        self.job_tracker.forget(job_id)
+        return {"deleted": True, "job_id": job_id}
 
     def public_output_url(self, path_text: str) -> str:
         path = Path(path_text)
@@ -72,6 +122,107 @@ class CreatorWebApp:
             raise ValueError(f"Output path is outside outputs directory: {path}")
         rel = path.relative_to(outputs_dir).as_posix()
         return f"/outputs/{rel}"
+
+    def _run_job_async(self, job) -> None:
+        try:
+            result = self.executor.run(job, progress_callback=self.job_tracker.make_progress_callback(job.job_id))
+            payload = result.to_dict()
+            payload["output_urls"] = [self.public_output_url(path) for path in result.outputs]
+            self.job_tracker.complete(job.job_id, payload)
+        except Exception as exc:  # noqa: BLE001
+            self.job_tracker.fail(job.job_id, str(exc))
+
+
+class WebJobTracker:
+    def __init__(self) -> None:
+        self._items: dict[str, dict] = {}
+        self._lock = threading.Lock()
+
+    def register(self, job) -> None:
+        with self._lock:
+            self._items[job.job_id] = {
+                "job": job.to_dict(),
+                "state": "queued",
+                "progress": {
+                    "value": 0.0,
+                    "percent": 0,
+                    "stage": "queued",
+                    "detail": "Queued",
+                },
+                "result": None,
+            }
+
+    def make_progress_callback(self, job_id: str):
+        def callback(value: float, stage: str, detail: str | None = None) -> None:
+            with self._lock:
+                item = self._items.get(job_id)
+                if not item:
+                    return
+                clamped = min(1.0, max(0.0, value))
+                item["state"] = "running" if clamped < 1.0 else item["state"]
+                item["progress"] = {
+                    "value": clamped,
+                    "percent": int(round(clamped * 100)),
+                    "stage": stage,
+                    "detail": detail or stage,
+                }
+        return callback
+
+    def complete(self, job_id: str, result: dict) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if not item:
+                return
+            state = result.get("status", "completed")
+            item["progress"] = {
+                "value": 1.0,
+                "percent": 100,
+                "stage": state,
+                "detail": result.get("message") or ("Generation complete" if state == "completed" else state),
+            }
+            item["state"] = state
+            item["result"] = result
+
+    def fail(self, job_id: str, message: str) -> None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if not item:
+                return
+            item["state"] = "error"
+            item["progress"] = {
+                "value": 1.0,
+                "percent": 100,
+                "stage": "error",
+                "detail": message,
+            }
+            item["result"] = {
+                "status": "error",
+                "message": message,
+                "outputs": [],
+                "output_urls": [],
+            }
+
+    def get(self, job_id: str) -> dict | None:
+        with self._lock:
+            item = self._items.get(job_id)
+            if item is None:
+                return None
+            return json.loads(json.dumps(item, ensure_ascii=False))
+
+    def snapshot(self, job_id: str) -> dict:
+        item = self.get(job_id)
+        if item is None:
+            raise FileNotFoundError(job_id)
+        return {
+            "job": item["job"],
+            "result": item["result"],
+            "progress": item["progress"],
+            "state": item["state"],
+        }
+
+    def forget(self, job_id: str) -> None:
+        with self._lock:
+            self._items.pop(job_id, None)
 
 
 def make_handler(app: CreatorWebApp):
@@ -121,9 +272,36 @@ def make_handler(app: CreatorWebApp):
                 if self.path == "/api/run":
                     self._json(app.run(prompt, task_type=task_type, input_images=input_images, resolution=resolution, outputs=outputs))
                     return
+                if self.path == "/api/run_async":
+                    self._json(
+                        app.run_async(
+                            prompt,
+                            task_type=task_type,
+                            input_images=input_images,
+                            resolution=resolution,
+                            outputs=outputs,
+                        ),
+                        HTTPStatus.ACCEPTED,
+                    )
+                    return
                 self._json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             except json.JSONDecodeError:
                 self._json({"error": "invalid_json"}, HTTPStatus.BAD_REQUEST)
+            except ValueError as exc:
+                self._json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
+            except Exception as exc:  # noqa: BLE001
+                self._json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+        def do_DELETE(self) -> None:  # noqa: N802
+            parsed = urlparse(self.path)
+            try:
+                if parsed.path.startswith("/api/jobs/"):
+                    job_id = parsed.path.rsplit("/", maxsplit=1)[-1]
+                    self._json(app.delete_job(job_id))
+                    return
+                self._json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
+            except FileNotFoundError:
+                self._json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             except Exception as exc:  # noqa: BLE001
                 self._json({"error": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
@@ -211,8 +389,8 @@ def _parse_outputs_override(value: object) -> int | None:
     if value in {None, ""}:
         return None
     outputs = int(value)
-    if outputs < 1 or outputs > 32:
-        raise ValueError("outputs must be between 1 and 32")
+    if outputs < 1 or outputs > 12:
+        raise ValueError("outputs must be between 1 and 12")
     return outputs
 
 

@@ -9,7 +9,9 @@ class StubAdapter(BackendAdapter):
         super().__init__(root)
         self.name = name
 
-    def execute(self, job: Job) -> ExecutionResult:
+    def execute(self, job: Job, progress_callback=None) -> ExecutionResult:
+        if progress_callback:
+            progress_callback(1.0, "blocked", f"Backend '{self.name}' is not implemented.")
         return ExecutionResult(
             job_id=job.job_id,
             backend=self.name,
@@ -17,4 +19,3 @@ class StubAdapter(BackendAdapter):
             outputs=[],
             message=f"Backend '{self.name}' is selected but not implemented yet.",
         )
-
