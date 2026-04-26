@@ -125,8 +125,12 @@ h1 {
 
 .control-row {
   display: grid;
-  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-columns: 180px 180px 140px;
   gap: 12px;
+}
+
+.control-row-secondary {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .field {
@@ -317,6 +321,10 @@ pre {
   }
 
   .control-row {
+    grid-template-columns: 1fr;
+  }
+
+  .control-row-secondary {
     grid-template-columns: 1fr;
   }
 

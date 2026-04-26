@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Agentic GenStudio</title>
+    <title id="pageTitle">灵构绘境</title>
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
@@ -12,7 +12,7 @@
         <header class="topbar">
           <div>
             <p class="eyebrow" data-i18n="eyebrow">本地 AI 创作代理</p>
-            <h1>Agentic GenStudio</h1>
+            <h1 data-i18n="appName">灵构绘境</h1>
             <p class="subtitle" data-i18n="subtitle">自然语言输入，Animagine 真实出图。</p>
           </div>
           <div class="topbar-side">
@@ -21,6 +21,7 @@
               <select id="language" name="language">
                 <option value="zh-CN">中文</option>
                 <option value="en">English</option>
+                <option value="ja">日本語</option>
               </select>
             </label>
             <div class="status" id="status">animagine ready</div>
@@ -32,11 +33,31 @@
             <label class="field">
               <span data-i18n="modeLabel">模式</span>
               <select id="taskType" name="taskType">
-                <option value="text_to_image" data-i18n="modeTextToImage">文生图</option>
-                <option value="image_to_image" data-i18n="modeImageToImage">图生图</option>
-                <option value="inpaint" data-i18n="modeInpaint">局部重绘</option>
+                <option value="text_to_image">Text to Image</option>
+                <option value="image_to_image">Image to Image</option>
+                <option value="inpaint">Inpaint</option>
               </select>
             </label>
+            <label class="field">
+              <span data-i18n="resolutionLabel">分辨率</span>
+              <select id="resolution" name="resolution">
+                <option value="768x768">768x768</option>
+                <option value="1024x1024" selected>1024x1024</option>
+                <option value="1216x832">1216x832</option>
+                <option value="832x1216">832x1216</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="outputsLabel">张数</span>
+              <select id="outputs" name="outputs">
+                <option value="1" selected>1</option>
+                <option value="2">2</option>
+                <option value="4">4</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-row control-row-secondary">
             <label class="field">
               <span data-i18n="sourceLabel">原图路径</span>
               <input id="sourceImage" name="sourceImage" type="text" data-i18n-placeholder="sourcePlaceholder" placeholder="D:\images\source.png 或相对路径">
@@ -46,7 +67,9 @@
               <input id="maskImage" name="maskImage" type="text" data-i18n-placeholder="maskPlaceholder" placeholder="D:\images\mask.png，用于局部重绘">
             </label>
           </div>
-          <textarea id="prompt" name="prompt" rows="7" spellcheck="false">masterpiece, best quality, 1girl, silver hair, blue eyes, rainy neon street, detailed background, 1024x1024, output 1</textarea>
+
+          <textarea id="prompt" name="prompt" rows="7" spellcheck="false">masterpiece, best quality, 1girl, silver hair, blue eyes, rainy neon street, detailed background</textarea>
+
           <div class="actions">
             <button type="button" id="planBtn" data-i18n="planButton">规划</button>
             <button type="submit" id="runBtn" data-i18n="runButton">运行</button>
@@ -57,7 +80,7 @@
           <article class="panel image-panel">
             <div class="panel-title" data-i18n="generatedImages">生成结果</div>
             <div id="gallery" class="gallery empty">
-              <div class="empty-state" data-i18n="galleryEmpty">运行后会在这里显示生成图片。</div>
+              <div class="empty-state" id="galleryEmptyText" data-i18n="galleryEmpty">运行后会在这里显示生成图片。</div>
             </div>
           </article>
           <article class="panel">

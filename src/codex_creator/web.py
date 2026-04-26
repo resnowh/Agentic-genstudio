@@ -22,12 +22,21 @@ class CreatorWebApp:
         job = plan(prompt, task_type_override=task_type)
         if input_images is not None:
             job.input_images = input_images
+        _apply_job_overrides(job, {})
         return job.to_dict()
 
-    def run(self, prompt: str, task_type: str | None = None, input_images: list[str] | None = None) -> dict:
+    def run(
+        self,
+        prompt: str,
+        task_type: str | None = None,
+        input_images: list[str] | None = None,
+        resolution: str | None = None,
+        outputs: int | None = None,
+    ) -> dict:
         job = plan(prompt, task_type_override=task_type)
         if input_images is not None:
             job.input_images = input_images
+        _apply_job_overrides(job, {"resolution": resolution, "outputs": outputs})
         result = self.executor.run(job)
         payload = result.to_dict()
         payload["output_urls"] = [self.public_output_url(path) for path in result.outputs]
@@ -97,14 +106,20 @@ def make_handler(app: CreatorWebApp):
                 prompt = str(payload.get("prompt", "")).strip()
                 task_type = _parse_task_type(payload.get("task_type"))
                 input_images = _collect_input_images(payload)
+                resolution = _parse_resolution_override(payload.get("resolution"))
+                outputs = _parse_outputs_override(payload.get("outputs"))
                 if not prompt:
                     self._json({"error": "prompt is required"}, HTTPStatus.BAD_REQUEST)
                     return
                 if self.path == "/api/plan":
-                    self._json({"job": app.plan(prompt, task_type=task_type, input_images=input_images)})
+                    job = plan(prompt, task_type_override=task_type)
+                    if input_images is not None:
+                        job.input_images = input_images
+                    _apply_job_overrides(job, {"resolution": resolution, "outputs": outputs})
+                    self._json({"job": job.to_dict()})
                     return
                 if self.path == "/api/run":
-                    self._json(app.run(prompt, task_type=task_type, input_images=input_images))
+                    self._json(app.run(prompt, task_type=task_type, input_images=input_images, resolution=resolution, outputs=outputs))
                     return
                 self._json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             except json.JSONDecodeError:
@@ -176,3 +191,35 @@ def _collect_input_images(payload: dict) -> list[str] | None:
         if value:
             paths.append(value)
     return paths or None
+
+
+def _parse_resolution_override(value: object) -> str | None:
+    if value in {None, ""}:
+        return None
+    resolution = str(value).strip().lower()
+    if not resolution:
+        return None
+    if not parse_qs(f"r={resolution}"):
+        return None
+    parts = resolution.split("x", maxsplit=1)
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        raise ValueError(f"Invalid resolution: {resolution}")
+    return resolution
+
+
+def _parse_outputs_override(value: object) -> int | None:
+    if value in {None, ""}:
+        return None
+    outputs = int(value)
+    if outputs < 1 or outputs > 32:
+        raise ValueError("outputs must be between 1 and 32")
+    return outputs
+
+
+def _apply_job_overrides(job, overrides: dict) -> None:
+    resolution = overrides.get("resolution")
+    outputs = overrides.get("outputs")
+    if resolution:
+        job.resolution = resolution
+    if outputs:
+        job.outputs = outputs
