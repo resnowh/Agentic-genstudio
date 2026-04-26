@@ -16,6 +16,12 @@ Run this in a normal terminal so download progress is visible:
 .\scripts\download_animagine_xl_4.bat
 ```
 
+The script downloads the public Hugging Face repository with:
+
+```powershell
+hf download cagliostrolab/animagine-xl-4.0 --local-dir models/diffusers/animagine-xl-4.0 --max-workers 4
+```
+
 The model is stored locally under:
 
 ```text
@@ -23,6 +29,12 @@ models/diffusers/animagine-xl-4.0
 ```
 
 Large model files are ignored by Git.
+
+Verify the local model files:
+
+```powershell
+.\scripts\verify_animagine_model.bat
+```
 
 ## Generate
 

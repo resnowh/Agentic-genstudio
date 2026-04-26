@@ -20,7 +20,7 @@ echo Keep this window open. Hugging Face will show per-file progress.
 
 "%ENV%\Scripts\hf.exe" download cagliostrolab/animagine-xl-4.0 ^
   --local-dir "%MODEL_DIR%" ^
-  --include "*.json" "*.txt" "*.md" "*.safetensors" "*.model"
+  --max-workers 4
 
 if errorlevel 1 (
   echo.
@@ -30,4 +30,5 @@ if errorlevel 1 (
 
 echo.
 echo Download complete.
+call "%ROOT%\scripts\verify_animagine_model.bat"
 echo Run scripts\run_animagine_text_to_image.bat next.
