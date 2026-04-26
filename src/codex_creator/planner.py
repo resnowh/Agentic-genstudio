@@ -2,11 +2,12 @@ from __future__ import annotations
 
 import re
 
-from .schemas import Job
+from .schemas import Job, SUPPORTED_TASKS
 
 
 def _contains_any(text: str, words: list[str]) -> bool:
-    return any(word.lower() in text.lower() for word in words)
+    lowered = text.lower()
+    return any(word.lower() in lowered for word in words)
 
 
 def _extract_outputs(text: str, default: int = 4) -> int:
@@ -14,8 +15,6 @@ def _extract_outputs(text: str, default: int = 4) -> int:
         r"output\s+(\d+)",
         r"generate\s+(\d+)",
         r"(\d+)\s+images?",
-        r"输出\s*(\d+)\s*张",
-        r"生成\s*(\d+)\s*张",
     ]
     for pattern in patterns:
         match = re.search(pattern, text, re.IGNORECASE)
@@ -25,7 +24,7 @@ def _extract_outputs(text: str, default: int = 4) -> int:
 
 
 def _extract_resolution(text: str, default: str = "1024x1024") -> str:
-    match = re.search(r"(\d{3,4})\s*[xX*×]\s*(\d{3,4})", text)
+    match = re.search(r"(\d{3,4})\s*[xX*]\s*(\d{3,4})", text)
     if match:
         return f"{match.group(1)}x{match.group(2)}"
     return default
@@ -36,22 +35,48 @@ def _extract_input_images(text: str) -> list[str]:
     return re.findall(image_pattern, text, re.IGNORECASE)
 
 
-def plan(prompt: str) -> Job:
+def _has_reference_intent(text: str) -> bool:
+    markers = [
+        "reference image",
+        "reference photo",
+        "input image",
+        "source image",
+        "use this image",
+        "use this photo",
+        "from this image",
+        "based on this image",
+        "reference",
+        "photo",
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".webp",
+        ".bmp",
+        "图片",
+        "照片",
+        "参考图",
+        "原图",
+    ]
+    return _contains_any(text, markers)
+
+
+def plan(prompt: str, task_type_override: str | None = None) -> Job:
     text = prompt.strip()
     lower = text.lower()
+    input_images = _extract_input_images(text)
 
     task_type = "text_to_image"
     preserve: list[str] = []
     change: list[str] = []
 
-    has_image = _contains_any(lower, ["image", "photo", "reference", ".png", ".jpg", ".jpeg", "图片", "照片", "参考图", "原图"])
-    wants_train = _contains_any(lower, ["train", "lora", "训练", "学习"])
-    wants_3d = _contains_any(lower, ["3d", "mesh", "glb", "obj", "三维", "模型"])
-    wants_pose = _contains_any(lower, ["pose", "action", "sitting", "standing", "running", "动作", "姿势", "坐", "站", "跑"])
-    wants_inpaint = _contains_any(lower, ["inpaint", "mask", "region", "局部", "只改", "遮罩"])
-    wants_upscale = _contains_any(lower, ["upscale", "高清", "放大", "修复"])
+    has_image = bool(input_images) or _has_reference_intent(lower)
+    wants_train = _contains_any(lower, ["train", "lora"])
+    wants_3d = _contains_any(lower, ["3d", "mesh", "glb", "obj"])
+    wants_pose = _contains_any(lower, ["pose", "action", "sitting", "standing", "running"])
+    wants_inpaint = _contains_any(lower, ["inpaint", "mask", "region"])
+    wants_upscale = _contains_any(lower, ["upscale"])
 
-    if wants_train and _contains_any(lower, ["style", "画风", "风格"]):
+    if wants_train and _contains_any(lower, ["style"]):
         task_type = "style_training"
     elif wants_train:
         task_type = "character_training"
@@ -63,7 +88,7 @@ def plan(prompt: str) -> Job:
         task_type = "pose_transfer"
         preserve.extend(["identity", "face", "hair"])
         change.append("pose")
-    elif has_image and _contains_any(lower, ["keep", "preserve", "same", "保留", "保持", "不变"]):
+    elif has_image and _contains_any(lower, ["keep", "preserve", "same"]):
         task_type = "character_reference"
         preserve.extend(["identity", "face"])
     elif has_image:
@@ -71,12 +96,15 @@ def plan(prompt: str) -> Job:
     elif wants_upscale:
         task_type = "upscale"
 
-    style = "anime" if _contains_any(lower, ["anime", "二次元", "动漫", "赛璐璐"]) else None
+    if task_type_override and task_type_override in SUPPORTED_TASKS:
+        task_type = task_type_override
+
+    style = "anime" if _contains_any(lower, ["anime"]) else None
 
     return Job(
         prompt=text,
         task_type=task_type,
-        input_images=_extract_input_images(text),
+        input_images=input_images,
         preserve=preserve,
         change=change,
         style=style,

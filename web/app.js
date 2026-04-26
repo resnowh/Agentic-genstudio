@@ -4,9 +4,93 @@ const runOutput = document.querySelector("#runOutput");
 const statusEl = document.querySelector("#status");
 const jobsEl = document.querySelector("#jobs");
 const galleryEl = document.querySelector("#gallery");
+const taskTypeEl = document.querySelector("#taskType");
+const sourceImageEl = document.querySelector("#sourceImage");
+const maskImageEl = document.querySelector("#maskImage");
+const languageEl = document.querySelector("#language");
+
+const translations = {
+  "zh-CN": {
+    eyebrow: "本地 AI 创作代理",
+    subtitle: "自然语言输入，Animagine 真实出图。",
+    languageLabel: "语言",
+    modeLabel: "模式",
+    modeTextToImage: "文生图",
+    modeImageToImage: "图生图",
+    modeInpaint: "局部重绘",
+    sourceLabel: "原图路径",
+    sourcePlaceholder: "D:\\images\\source.png 或相对路径",
+    maskLabel: "蒙版路径",
+    maskPlaceholder: "D:\\images\\mask.png，用于局部重绘",
+    planButton: "规划",
+    runButton: "运行",
+    generatedImages: "生成结果",
+    galleryEmpty: "运行后会在这里显示生成图片。",
+    galleryNoOutput: "这个任务目前还没有图片输出。",
+    plannedJob: "任务规划",
+    executionResult: "执行结果",
+    recentJobs: "最近任务",
+    statusReady: "animagine 就绪",
+    statusPlanning: "规划中",
+    statusPlanReady: "规划完成",
+    statusRunning: "生成中",
+    statusError: "错误",
+    statusJobLoaded: "任务已载入",
+  },
+  en: {
+    eyebrow: "Local AI creation agent",
+    subtitle: "Natural language in, Animagine-powered images out.",
+    languageLabel: "Language",
+    modeLabel: "Mode",
+    modeTextToImage: "Text to Image",
+    modeImageToImage: "Image to Image",
+    modeInpaint: "Inpaint",
+    sourceLabel: "Source Image Path",
+    sourcePlaceholder: "D:\\images\\source.png or relative path",
+    maskLabel: "Mask Image Path",
+    maskPlaceholder: "D:\\images\\mask.png for inpaint",
+    planButton: "Plan",
+    runButton: "Run",
+    generatedImages: "Generated Images",
+    galleryEmpty: "Run a prompt to render images here.",
+    galleryNoOutput: "No image outputs for this job yet.",
+    plannedJob: "Planned Job",
+    executionResult: "Execution Result",
+    recentJobs: "Recent Jobs",
+    statusReady: "animagine ready",
+    statusPlanning: "planning",
+    statusPlanReady: "plan ready",
+    statusRunning: "running",
+    statusError: "error",
+    statusJobLoaded: "job loaded",
+  },
+};
+
+let currentLanguage = "zh-CN";
 
 function pretty(value) {
   return JSON.stringify(value, null, 2);
+}
+
+function t(key) {
+  return translations[currentLanguage][key] || key;
+}
+
+function applyLanguage(language) {
+  currentLanguage = translations[language] ? language : "zh-CN";
+  document.documentElement.lang = currentLanguage;
+  localStorage.setItem("agentic-genstudio-language", currentLanguage);
+  languageEl.value = currentLanguage;
+
+  document.querySelectorAll("[data-i18n]").forEach((node) => {
+    node.textContent = t(node.dataset.i18n);
+  });
+
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((node) => {
+    node.placeholder = t(node.dataset.i18nPlaceholder);
+  });
+
+  syncModeLabels();
 }
 
 async function postJSON(url, payload) {
@@ -18,6 +102,38 @@ async function postJSON(url, payload) {
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || response.statusText);
   return data;
+}
+
+function buildPayload() {
+  return {
+    prompt: promptEl.value,
+    task_type: taskTypeEl.value,
+    source_image: sourceImageEl.value.trim(),
+    mask_image: maskImageEl.value.trim(),
+  };
+}
+
+function syncModeUI() {
+  const mode = taskTypeEl.value;
+  sourceImageEl.disabled = mode === "text_to_image";
+  maskImageEl.disabled = mode !== "inpaint";
+  if (mode === "text_to_image") {
+    sourceImageEl.value = "";
+    maskImageEl.value = "";
+  } else if (mode === "image_to_image") {
+    maskImageEl.value = "";
+  }
+}
+
+function syncModeLabels() {
+  const optionMap = {
+    text_to_image: t("modeTextToImage"),
+    image_to_image: t("modeImageToImage"),
+    inpaint: t("modeInpaint"),
+  };
+  for (const option of taskTypeEl.options) {
+    option.textContent = optionMap[option.value] || option.value;
+  }
 }
 
 async function refreshJobs() {
@@ -34,7 +150,7 @@ async function refreshJobs() {
       planOutput.textContent = pretty(detail.job);
       runOutput.textContent = pretty(detail.result || {});
       renderGallery(detail.result || {});
-      statusEl.textContent = detail.result?.status || "job loaded";
+      statusEl.textContent = detail.result?.status || t("statusJobLoaded");
     });
     jobsEl.appendChild(item);
   }
@@ -45,7 +161,7 @@ function renderGallery(result) {
   galleryEl.innerHTML = "";
   galleryEl.classList.toggle("empty", urls.length === 0);
   if (!urls.length) {
-    galleryEl.innerHTML = `<div class="empty-state">No image outputs for this job yet.</div>`;
+    galleryEl.innerHTML = `<div class="empty-state">${t("galleryNoOutput")}</div>`;
     return;
   }
   for (const url of urls) {
@@ -57,32 +173,36 @@ function renderGallery(result) {
 }
 
 document.querySelector("#planBtn").addEventListener("click", async () => {
-  statusEl.textContent = "planning";
+  statusEl.textContent = t("statusPlanning");
   try {
-    const data = await postJSON("/api/plan", { prompt: promptEl.value });
+    const data = await postJSON("/api/plan", buildPayload());
     planOutput.textContent = pretty(data.job);
-    statusEl.textContent = "plan ready";
+    statusEl.textContent = t("statusPlanReady");
   } catch (error) {
-    statusEl.textContent = "error";
+    statusEl.textContent = t("statusError");
     planOutput.textContent = error.message;
   }
 });
 
 document.querySelector("#composer").addEventListener("submit", async (event) => {
   event.preventDefault();
-  statusEl.textContent = "running";
+  statusEl.textContent = t("statusRunning");
   try {
-    const data = await postJSON("/api/run", { prompt: promptEl.value });
+    const data = await postJSON("/api/run", buildPayload());
     planOutput.textContent = pretty(data.job);
     runOutput.textContent = pretty(data.result);
     renderGallery(data.result);
     statusEl.textContent = data.result.status;
     await refreshJobs();
   } catch (error) {
-    statusEl.textContent = "error";
+    statusEl.textContent = t("statusError");
     runOutput.textContent = error.message;
   }
 });
 
+taskTypeEl.addEventListener("change", syncModeUI);
+languageEl.addEventListener("change", () => applyLanguage(languageEl.value));
 refreshJobs();
 renderGallery({});
+applyLanguage(localStorage.getItem("agentic-genstudio-language") || "zh-CN");
+syncModeUI();

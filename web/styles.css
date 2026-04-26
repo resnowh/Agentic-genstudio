@@ -69,6 +69,24 @@ pre {
   padding-bottom: 18px;
 }
 
+.topbar-side {
+  display: grid;
+  gap: 10px;
+  justify-items: end;
+}
+
+.lang-switch {
+  display: grid;
+  gap: 6px;
+  min-width: 130px;
+}
+
+.lang-switch span {
+  color: var(--olive);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: var(--olive);
@@ -105,6 +123,23 @@ h1 {
   gap: 12px;
 }
 
+.control-row {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.field {
+  display: grid;
+  gap: 6px;
+}
+
+.field span {
+  color: var(--olive);
+  font-size: 13px;
+  text-transform: uppercase;
+}
+
 textarea {
   width: 100%;
   resize: vertical;
@@ -115,6 +150,26 @@ textarea {
   background: #fffdf7;
   outline: none;
   line-height: 1.45;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: #fffdf7;
+  outline: none;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--accent);
+}
+
+input:disabled {
+  color: #8f8d86;
+  background: #f1ece2;
 }
 
 textarea:focus {
@@ -258,6 +313,10 @@ pre {
 @media (max-width: 900px) {
   .shell,
   .result-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .control-row {
     grid-template-columns: 1fr;
   }
 

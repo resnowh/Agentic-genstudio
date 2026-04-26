@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,41 +11,68 @@
       <section class="workspace">
         <header class="topbar">
           <div>
-            <p class="eyebrow">Local AI creation agent</p>
+            <p class="eyebrow" data-i18n="eyebrow">本地 AI 创作代理</p>
             <h1>Agentic GenStudio</h1>
-            <p class="subtitle">Natural language in, Animagine-powered images out.</p>
+            <p class="subtitle" data-i18n="subtitle">自然语言输入，Animagine 真实出图。</p>
           </div>
-          <div class="status" id="status">animagine ready</div>
+          <div class="topbar-side">
+            <label class="lang-switch" for="language">
+              <span data-i18n="languageLabel">语言</span>
+              <select id="language" name="language">
+                <option value="zh-CN">中文</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+            <div class="status" id="status">animagine ready</div>
+          </div>
         </header>
 
         <form class="composer" id="composer">
-          <textarea id="prompt" name="prompt" rows="7" spellcheck="false">Generate an anime girl with silver hair, blue eyes, rainy street, output 4 images</textarea>
+          <div class="control-row">
+            <label class="field">
+              <span data-i18n="modeLabel">模式</span>
+              <select id="taskType" name="taskType">
+                <option value="text_to_image" data-i18n="modeTextToImage">文生图</option>
+                <option value="image_to_image" data-i18n="modeImageToImage">图生图</option>
+                <option value="inpaint" data-i18n="modeInpaint">局部重绘</option>
+              </select>
+            </label>
+            <label class="field">
+              <span data-i18n="sourceLabel">原图路径</span>
+              <input id="sourceImage" name="sourceImage" type="text" data-i18n-placeholder="sourcePlaceholder" placeholder="D:\images\source.png 或相对路径">
+            </label>
+            <label class="field">
+              <span data-i18n="maskLabel">蒙版路径</span>
+              <input id="maskImage" name="maskImage" type="text" data-i18n-placeholder="maskPlaceholder" placeholder="D:\images\mask.png，用于局部重绘">
+            </label>
+          </div>
+          <textarea id="prompt" name="prompt" rows="7" spellcheck="false">masterpiece, best quality, 1girl, silver hair, blue eyes, rainy neon street, detailed background, 1024x1024, output 1</textarea>
           <div class="actions">
-            <button type="button" id="planBtn">Plan</button>
-            <button type="submit" id="runBtn">Run</button>
+            <button type="button" id="planBtn" data-i18n="planButton">规划</button>
+            <button type="submit" id="runBtn" data-i18n="runButton">运行</button>
           </div>
         </form>
 
         <section class="result-grid">
           <article class="panel image-panel">
-            <div class="panel-title">Generated Images</div>
+            <div class="panel-title" data-i18n="generatedImages">生成结果</div>
             <div id="gallery" class="gallery empty">
-              <div class="empty-state">Run a prompt to render images here.</div>
+              <div class="empty-state" data-i18n="galleryEmpty">运行后会在这里显示生成图片。</div>
             </div>
           </article>
           <article class="panel">
-            <div class="panel-title">Planned Job</div>
+            <div class="panel-title" data-i18n="plannedJob">任务规划</div>
             <pre id="planOutput">{}</pre>
           </article>
           <article class="panel">
-            <div class="panel-title">Execution Result</div>
+            <div class="panel-title" data-i18n="executionResult">执行结果</div>
             <pre id="runOutput">{}</pre>
           </article>
         </section>
       </section>
 
       <aside class="history">
-        <div class="panel-title">Recent Jobs</div>
+        <div class="panel-title" data-i18n="recentJobs">最近任务</div>
         <div id="jobs" class="jobs"></div>
       </aside>
     </main>

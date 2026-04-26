@@ -9,7 +9,7 @@ from urllib.parse import parse_qs, urlparse
 
 from .executor import Executor
 from .planner import plan
-from .schemas import workspace_path
+from .schemas import SUPPORTED_TASKS, workspace_path
 
 
 class CreatorWebApp:
@@ -18,11 +18,16 @@ class CreatorWebApp:
         self.static_dir = self.root / "web"
         self.executor = Executor(self.root)
 
-    def plan(self, prompt: str) -> dict:
-        return plan(prompt).to_dict()
+    def plan(self, prompt: str, task_type: str | None = None, input_images: list[str] | None = None) -> dict:
+        job = plan(prompt, task_type_override=task_type)
+        if input_images is not None:
+            job.input_images = input_images
+        return job.to_dict()
 
-    def run(self, prompt: str) -> dict:
-        job = plan(prompt)
+    def run(self, prompt: str, task_type: str | None = None, input_images: list[str] | None = None) -> dict:
+        job = plan(prompt, task_type_override=task_type)
+        if input_images is not None:
+            job.input_images = input_images
         result = self.executor.run(job)
         payload = result.to_dict()
         payload["output_urls"] = [self.public_output_url(path) for path in result.outputs]
@@ -90,14 +95,16 @@ def make_handler(app: CreatorWebApp):
             try:
                 payload = self._read_body()
                 prompt = str(payload.get("prompt", "")).strip()
+                task_type = _parse_task_type(payload.get("task_type"))
+                input_images = _collect_input_images(payload)
                 if not prompt:
                     self._json({"error": "prompt is required"}, HTTPStatus.BAD_REQUEST)
                     return
                 if self.path == "/api/plan":
-                    self._json({"job": app.plan(prompt)})
+                    self._json({"job": app.plan(prompt, task_type=task_type, input_images=input_images)})
                     return
                 if self.path == "/api/run":
-                    self._json(app.run(prompt))
+                    self._json(app.run(prompt, task_type=task_type, input_images=input_images))
                     return
                 self._json({"error": "not_found"}, HTTPStatus.NOT_FOUND)
             except json.JSONDecodeError:
@@ -151,3 +158,21 @@ def serve(host: str = "127.0.0.1", port: int = 8765) -> None:
 
 def _read_json(path: Path) -> dict:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _parse_task_type(value: object) -> str | None:
+    if not value:
+        return None
+    task_type = str(value).strip()
+    if task_type not in SUPPORTED_TASKS:
+        raise ValueError(f"Unsupported task_type: {task_type}")
+    return task_type
+
+
+def _collect_input_images(payload: dict) -> list[str] | None:
+    paths: list[str] = []
+    for key in ["source_image", "mask_image"]:
+        value = str(payload.get(key, "")).strip()
+        if value:
+            paths.append(value)
+    return paths or None
